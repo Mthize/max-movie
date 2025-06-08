@@ -1,5 +1,5 @@
 🎬 MovieFinder App
-A sleek and responsive React-based movie discovery application that helps users find trending and popular movies using The Movie Database (TMDb) API. Users can search for movies and view current trending titles stored via Appwrite.
+ A sleek and responsive React-based movie discovery application that helps users find trending and popular movies using The Movie Database (TMDb) API. Users can search for movies and view current trending titles stored via    Appwrite.
 
 🚀 Features
 🔍 Live Search with debounce functionality
