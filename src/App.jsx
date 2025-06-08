@@ -3,7 +3,7 @@ import { Search } from "./assets/components/Search.jsx";
 import Spinner from "./assets/components/spinner.jsx";
 import MovieCard from "./assets/components/MovieCard.jsx";
 import { useDebounce } from "react-use";
-import { updateSearchCount } from './appwrite.js'
+import { getTrendingMovies, updateSearchCount } from './appwrite.js'
 
 const API_BASE_URL = 'https://api.themoviedb.org/3';
 
@@ -21,32 +21,31 @@ const App = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [errorMessages, setErrorMessages] = useState('');
     const [movieList, setMovieList] = useState([]);
+    const [trendingMovies, setTrendingMovies] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
 
-    useDebounce(() => setDebounceSearchTerm(searchTerm), 500, [searchTerm]);
-
-    useEffect(() => {
-        setErrorMessages('Error fetching movies. Please try again later.');
-        fetchMovies(debounceSearchTerm);
-    }, [debounceSearchTerm]);
+    useDebounce(() => setDebounceSearchTerm(searchTerm), 500, [searchTerm])
 
     const fetchMovies = async (query = '') => {
         setIsLoading(true);
         setErrorMessages('');
+
         try {
             const endpoint = query
                 ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}`
                 : `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
 
             const response = await fetch(endpoint, API_OPTIONS);
-            if (!response.ok) {
-                throw new Error('Something went wrong');
+
+            if(!response.ok) {
+                throw new Error('Failed to fetch movies');
             }
+
             const data = await response.json();
 
-            if (data.Response === 'False') {
-                setErrorMessages(data.Error || 'Something went wrong');
+            if(data.Response === 'False') {
+                setErrorMessages(data.Error || 'Failed to fetch movies');
                 setMovieList([]);
                 return;
             }
@@ -57,28 +56,60 @@ const App = () => {
                 await updateSearchCount(query, data.results[0]);
             }
         } catch (error) {
-            console.log(`Error fetching movies: ${error}`);
+            console.error(`Error fetching movies: ${error}`);
+            setErrorMessages('Error fetching movies. Please try again later.');
         } finally {
             setIsLoading(false);
         }
     }
 
+    const loadTrendingMovies = async () => {
+        try {
+            const movies = await getTrendingMovies();
+
+            setTrendingMovies(movies);
+        } catch (error) {
+            console.error(`Error fetching trending movies: ${error}`);
+        }
+    }
+
+    useEffect(() => {
+        fetchMovies(debounceSearchTerm);
+    }, [debounceSearchTerm]);
+
+    useEffect(() => {
+        loadTrendingMovies();
+    }, []);
+
     return (
         <main>
-            <div className="pattern" />
+            <div className="pattern"/>
 
             <div className="wrapper">
                 <header>
                     <img src="./hero.png" alt="Hero Banner" />
-                    <h1>
-                        One Place To Find Your Favoureite
-                        <span className="text-gradient"> Movies</span> Without A Hassle
-                    </h1>
+                    <h1>Find <span className="text-gradient">Movies</span> You'll Enjoy Without the Hassle</h1>
+
                     <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
                 </header>
 
+                {trendingMovies.length > 0 && (
+                    <section className="trending">
+                        <h2>Trending Movies</h2>
+
+                        <ul>
+                            {trendingMovies.map((movie, index) => (
+                                <li key={movie.$id}>
+                                    <p>{index + 1}</p>
+                                    <img src={movie.poster_url} alt={movie.title} />
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+
                 <section className="all-movies">
-                    <h2 className="mt-[40px]">All Movies</h2>
+                    <h2>All Movies</h2>
 
                     {isLoading ? (
                         <Spinner />
