@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { Search } from "./assets/components/Search.jsx";
 import Spinner from "./assets/components/spinner.jsx";
+import MovieCard from "./assets/components/MovieCard.jsx";
+import { useDebounce } from "react-use";
+import { updateSearchCount } from './appwrite.js'
 
 const API_BASE_URL = 'https://api.themoviedb.org/3';
 
@@ -17,19 +20,24 @@ const API_OPTIONS = {
 const App = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [errorMessages, setErrorMessages] = useState('');
-    const [movieList, setMovieList] = useState([])
+    const [movieList, setMovieList] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
+
+    useDebounce(() => setDebounceSearchTerm(searchTerm), 500, [searchTerm]);
 
     useEffect(() => {
         setErrorMessages('Error fetching movies. Please try again later.');
-        fetchMovies();
-    }, []);
+        fetchMovies(debounceSearchTerm);
+    }, [debounceSearchTerm]);
 
-    const fetchMovies = async () => {
+    const fetchMovies = async (query = '') => {
         setIsLoading(true);
         setErrorMessages('');
         try {
-            const endpoint = `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
+            const endpoint = query
+                ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}`
+                : `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
 
             const response = await fetch(endpoint, API_OPTIONS);
             if (!response.ok) {
@@ -44,6 +52,10 @@ const App = () => {
             }
 
             setMovieList(data.results || []);
+
+            if(query && data.results.length > 0) {
+                await updateSearchCount(query, data.results[0]);
+            }
         } catch (error) {
             console.log(`Error fetching movies: ${error}`);
         } finally {
@@ -75,7 +87,7 @@ const App = () => {
                     ) : (
                         <ul>
                             {movieList.map((movie) => (
-                                <p key={movie.id} className="text-white">{movie.title}</p>
+                                <MovieCard key={movie.id} movie={movie} />
                             ))}
                         </ul>
                     )}
